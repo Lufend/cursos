@@ -1,0 +1,104 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@300;400&display=swap');
+
+.certificate-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background-color: #e9ecef;
+}
+
+.certificate-container {
+    width: 800px;
+    height: 565px;
+    border: 10px solid #5624d0;
+    padding: 30px;
+    background-color: white;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    text-align: center;
+    font-family: 'Roboto', sans-serif;
+    color: #333;
+}
+
+.certificate-header .main-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 3em;
+    color: #5624d0;
+    margin: 0;
+}
+.certificate-header .subtitle {
+    font-size: 1.2em;
+    margin-top: 10px;
+}
+.certificate-body .student-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5em;
+    color: #1c1d1f;
+    margin: 20px 0;
+    border-bottom: 2px solid #5624d0;
+    display: inline-block;
+    padding-bottom: 5px;
+}
+.certificate-body .completion-text {
+    font-size: 1.1em;
+}
+.certificate-body .course-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin: 15px 0;
+}
+.certificate-body .instructor-text {
+    font-size: 1em;
+    color: #6a6f73;
+}
+.certificate-footer {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    margin-top: 40px;
+}
+.certificate-footer p {
+    margin: 0;
+    font-size: 0.9em;
+}
+.certificate-footer hr {
+    width: 100%;
+    border: 0;
+    border-top: 1px solid #333;
+    margin-top: 5px;
+}
+.print-button {
+    margin-top: 30px;
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #a435f0;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.print-button:hover {
+    background-color: #8710d8;
+}
+
+/* Estilos para impresión */
+@media print {
+    body, .certificate-page {
+        background-color: white;
+        padding: 0;
+        margin: 0;
+    }
+    .print-button, .navbar, .category-bar, .back-to-courses-link {
+        display: none !important;
+    }
+    .certificate-container {
+        box-shadow: none;
+        width: 100%;
+        height: 100%;
+        border: 10px solid #5624d0;
+    }
+}

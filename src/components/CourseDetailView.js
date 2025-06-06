@@ -1,74 +1,107 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../App';
-import ReactPlayer from 'react-player/lazy'; // Para un reproductor más versátil
+import ReactPlayer from 'react-player/lazy';
 
 function CourseDetailView() {
   const { courseId } = useParams();
   const { user, API_BASE_URL } = useContext(AuthContext);
-  const [course, setCourse] = useState(null);
+  
   const [lessons, setLessons] = useState([]);
   const [currentVideoUrl, setCurrentVideoUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchCourseAndLessons = async () => {
-      if (!user) {
-        setError("Debes iniciar sesión para ver los detalles del curso.");
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setError('');
-        // Fetch course details (asumimos que tienes un endpoint para esto o lo ajustas)
-        // Por ahora, nos enfocaremos en las lecciones. Podrías obtener el título del curso de otra forma.
-        // const courseResponse = await axios.get(`${API_BASE_URL}/courses/${courseId}`);
-        // setCourse(courseResponse.data); // Asumiendo que tienes un endpoint /api/courses/:id que devuelve el curso
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [completionId, setCompletionId] = useState(null);
+  const [completionMessage, setCompletionMessage] = useState('');
+  
+  const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!user) {
+      setError("Debes iniciar sesión para ver los detalles del curso.");
+      setLoading(false);
+      return;
+    }
+
+    const fetchCourseData = async () => {
+      setLoading(true);
+      setError('');
+      try {
         const lessonsResponse = await axios.get(`${API_BASE_URL}/courses/${courseId}/lessons`);
         setLessons(lessonsResponse.data);
         if (lessonsResponse.data.length > 0) {
-          setCurrentVideoUrl(lessonsResponse.data[0].video_url); // Poner el primer video por defecto
+          setCurrentVideoUrl(lessonsResponse.data[0].video_url);
         }
+
+        const completionStatusResponse = await axios.get(`${API_BASE_URL}/courses/${courseId}/completion`);
+        if (completionStatusResponse.data.isCompleted) {
+          setIsCompleted(true);
+          setCompletionId(completionStatusResponse.data.completionId);
+        }
+
       } catch (err) {
-        console.error("Error fetching course details or lessons:", err);
-        setError('No se pudieron cargar los detalles del curso o las lecciones.');
+        console.error("Error fetching course details:", err);
+        setError('No se pudieron cargar los datos del curso.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCourseAndLessons();
+    fetchCourseData();
   }, [API_BASE_URL, user, courseId]);
+
+  const handleMarkAsComplete = async () => {
+    setCompletionMessage('');
+    try {
+      const response = await axios.post(`${API_BASE_URL}/courses/${courseId}/complete`);
+      setIsCompleted(true);
+      // CORREGIDO: Ahora siempre espera 'completionId' (camelCase)
+      setCompletionId(response.data.completionId); 
+      setCompletionMessage(response.data.message);
+    } catch (error) {
+      console.error("Error al marcar el curso como completo:", error);
+      const message = error.response?.data?.message || 'Hubo un error al procesar tu solicitud.';
+      setCompletionMessage(message);
+    }
+  };
+
+  // --- FUNCIÓN DE NAVEGACIÓN CORREGIDA ---
+  const handleViewCertificate = () => {
+    // Depuración: Verifica qué valor tiene completionId antes de navegar
+    console.log("Intentando navegar al certificado con ID:", completionId);
+    
+    // Solo navega si completionId es un valor válido (no null, no undefined, etc.)
+    if (completionId) {
+        navigate(`/certificate/${completionId}`);
+    } else {
+        console.error("No se puede navegar: completionId es nulo o inválido.");
+        setCompletionMessage("Error: No se pudo encontrar el ID del certificado para navegar.");
+    }
+  };
 
   if (loading) return <p>Cargando detalles del curso...</p>;
   if (error) return <p className="error-message">{error}</p>;
-  // if (!course) return <p className="error-message">Curso no encontrado.</p>; // Descomentar si cargas detalles del curso
 
   return (
     <div className="course-detail-container">
-      {/* <h2>{course.title}</h2> */} {/* Descomentar si cargas detalles del curso */}
       <h2>Videos del Curso</h2>
       <div className="course-layout">
         <div className="video-player-area">
+          {/* ... (código del reproductor y lista de lecciones, no cambia) ... */}
           {currentVideoUrl ? (
             <ReactPlayer
               url={currentVideoUrl}
               controls={true}
               width="100%"
-              height="450px"
-              onError={(e) => {
-                console.error('ReactPlayer Error:', e);
-                setError('Error al cargar el video. Asegúrate de que la URL es correcta y accesible.');
-              }}
+              height="100%"
+              onError={(e) => console.error('ReactPlayer Error:', e)}
             />
           ) : (
-            lessons.length > 0 && <p>Selecciona un video de la lista para reproducirlo.</p>
+            lessons.length > 0 ? <p>Selecciona un video de la lista para reproducirlo.</p> : <p>Este curso aún no tiene videos.</p>
           )}
-          {!currentVideoUrl && lessons.length === 0 && <p>Este curso aún no tiene videos.</p>}
         </div>
         <div className="lessons-list-area">
           <h3>Lecciones</h3>
@@ -89,6 +122,24 @@ function CourseDetailView() {
           )}
         </div>
       </div>
+
+      <div className="course-completion-area">
+        {completionMessage && <p className="completion-message">{completionMessage}</p>}
+        
+        {isCompleted ? (
+            // CORREGIDO: El botón ahora llama a la nueva función de navegación
+            <button onClick={handleViewCertificate} className="certificate-button">
+                Ver mi Certificado
+            </button>
+        ) : (
+            lessons.length > 0 && (
+              <button onClick={handleMarkAsComplete} className="complete-button">
+                  Marcar Curso como Completado
+              </button>
+            )
+        )}
+      </div>
+
       <Link to="/courses" className="back-to-courses-link">Volver a la lista de cursos</Link>
     </div>
   );

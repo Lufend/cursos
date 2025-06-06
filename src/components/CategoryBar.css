@@ -1,0 +1,27 @@
+.category-bar {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    padding: 10px 0;
+    background-color: #fff;
+    border-bottom: 1px solid #d1d7dc;
+    margin-bottom: 20px;
+}
+
+.category-link, .active-category-link {
+    text-decoration: none;
+    color: #6a6f73;
+    font-weight: 500;
+    padding-bottom: 8px;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.category-link:hover {
+    color: #1c1d1f;
+}
+
+.active-category-link {
+    color: #1c1d1f;
+    border-bottom-color: #1c1d1f;
+}

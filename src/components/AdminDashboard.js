@@ -10,12 +10,14 @@ function AdminDashboard() {
   const [courseSuccessMessage, setCourseSuccessMessage] = useState('');
   const [isEditingCourse, setIsEditingCourse] = useState(false);
   const [currentCourse, setCurrentCourse] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [courseFormData, setCourseFormData] = useState({
-    title: '',
-    description: '',
-    instructor: '',
-    image_url: ''
-  });
+        title: '',
+        description: '',
+        instructor: '',
+        image_url: '',
+        category_id: ''
+    });
 
   // Estados para Lecciones
   const [lessons, setLessons] = useState([]);
@@ -54,25 +56,54 @@ function AdminDashboard() {
     }
   };
 
+  // --- CÓDIGO CORREGIDO Y AÑADIDO ---
+
+  // 1. useEffect para cargar los cursos al iniciar y cuando el usuario cambie.
   useEffect(() => {
+    // Este efecto se ejecutará cuando el componente se monte
+    // y también se volverá a ejecutar cada vez que el objeto 'user' cambie.
     if (user && user.is_admin) {
       fetchCourses();
     }
-  }, [API_BASE_URL, user]); // API_BASE_URL y user como dependencias
+  }, [user]); // La dependencia 'user' es la clave para resolver el problema.
+
+  // 2. useEffect para cargar las categorías.
+  useEffect(() => {
+    const fetchCategories = async () => {
+        // Añadimos la condición 'if (user)' para que solo se ejecute si hay un usuario.
+        if (user) {
+            try {
+                const response = await axios.get(`${API_BASE_URL}/categories`);
+                setCategories(response.data);
+            } catch (err) {
+                console.error("Error fetching categories for admin:", err);
+            }
+        }
+    };
+    fetchCategories();
+  }, [user, API_BASE_URL]); // Añadimos 'user' a las dependencias.
+
+  // 3. Función de reseteo más completa.
+  const resetCourseFormAndSelection = () => {
+    setIsEditingCourse(false);
+    setCurrentCourse(null);
+    setCourseFormData({
+        title: '',
+        description: '',
+        instructor: '',
+        image_url: '',
+        category_id: ''
+    });
+    setLessons([]); // También limpia las lecciones del curso que se estaba editando.
+    resetLessonFormAndSelection(); // Y el formulario de lecciones.
+  };  
+
+  // --- FIN DEL CÓDIGO CORREGIDO ---
+
 
   const handleCourseInputChange = (e) => {
     const { name, value } = e.target;
     setCourseFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const resetCourseFormAndSelection = () => {
-    setCourseFormData({ title: '', description: '', instructor: '', image_url: '' });
-    setIsEditingCourse(false);
-    setCurrentCourse(null);
-    setLessons([]); // Limpiar lecciones al deseleccionar curso
-    resetLessonFormAndSelection(); // Limpiar formulario y selección de lección
-    setCourseError(''); // Limpiar errores específicos del formulario de curso
-    // No limpiar courseSuccessMessage aquí, podría ser de una acción previa en la lista
   };
 
   const handleCourseSubmit = async (e) => {
@@ -80,8 +111,8 @@ function AdminDashboard() {
     setCourseError('');
     setCourseSuccessMessage('');
 
-    if (!courseFormData.title || !courseFormData.description || !courseFormData.instructor) {
-      showMessage(setCourseError, 'Por favor, completa título, descripción e instructor del curso.', true);
+    if (!courseFormData.title || !courseFormData.description || !courseFormData.instructor || !courseFormData.category_id) {
+      showMessage(setCourseError, 'Por favor, completa todos los campos requeridos, incluyendo la categoría.', true);
       return;
     }
 
@@ -91,11 +122,10 @@ function AdminDashboard() {
     try {
       const response = await axios[method](url, courseFormData);
       showMessage(setCourseSuccessMessage, response.data.message);
-      fetchCourses();
-      if (!isEditingCourse) { // Solo resetear si es creación, para edición puede querer seguir editando lecciones
+      fetchCourses(); // Se mantiene para refrescar la lista después de la acción.
+      if (!isEditingCourse) {
           resetCourseFormAndSelection();
       } else {
-          // Actualizar currentCourse con los nuevos datos por si el título cambió
           setCurrentCourse(prev => ({...prev, ...courseFormData}));
       }
     } catch (err) {
@@ -112,13 +142,14 @@ function AdminDashboard() {
       title: course.title,
       description: course.description,
       instructor: course.instructor,
-      image_url: course.image_url || ''
+      image_url: course.image_url || '', // Prevenir valor nulo en el input
+      category_id: course.category_id || '' 
     });
     fetchLessonsForCourse(course.id);
-    resetLessonFormAndSelection(); // Limpiar cualquier estado de edición de lección previa
-    setCourseError(''); // Limpiar errores del formulario de curso
-    setCourseSuccessMessage(''); // Limpiar mensajes de éxito del formulario de curso
-    window.scrollTo(0, 0); // Scroll al inicio para ver el formulario de edición
+    resetLessonFormAndSelection();
+    setCourseError('');
+    setCourseSuccessMessage('');
+    window.scrollTo(0, 0);
   };
 
   const handleDeleteCourse = async (courseId) => {
@@ -129,7 +160,7 @@ function AdminDashboard() {
         const response = await axios.delete(`${API_BASE_URL}/courses/${courseId}`);
         showMessage(setCourseSuccessMessage, response.data.message);
         fetchCourses();
-        if (currentCourse && currentCourse.id === courseId) { // Si el curso eliminado era el que se estaba editando
+        if (currentCourse && currentCourse.id === courseId) {
             resetCourseFormAndSelection();
         }
       } catch (err) {
@@ -150,7 +181,7 @@ function AdminDashboard() {
     setLessonError('');
     try {
       const response = await axios.get(`${API_BASE_URL}/courses/${courseId}/lessons`);
-      setLessons(response.data.sort((a,b) => a.order_index - b.order_index)); // Ordenar al recibir
+      setLessons(response.data.sort((a,b) => a.order_index - b.order_index));
     } catch (err) {
       console.error("Error fetching lessons:", err);
       showMessage(setLessonError, 'Error al cargar las lecciones del curso.', true);
@@ -170,7 +201,6 @@ function AdminDashboard() {
     setIsEditingLesson(false);
     setCurrentLesson(null);
     setLessonError('');
-    // No limpiar lessonSuccessMessage aquí, podría ser de una acción previa en la lista
   };
 
   const handleLessonSubmit = async (e) => {
@@ -218,9 +248,8 @@ function AdminDashboard() {
       description: lesson.description || '',
       order_index: lesson.order_index || 0
     });
-    setLessonError(''); // Limpiar errores específicos del formulario de lección
+    setLessonError('');
     setLessonSuccessMessage('');
-    // Opcional: scroll al formulario de lección si la página es muy larga
     const lessonFormElement = document.getElementById('lesson-form-anchor');
     if (lessonFormElement) {
         lessonFormElement.scrollIntoView({ behavior: 'smooth' });
@@ -236,7 +265,7 @@ function AdminDashboard() {
         showMessage(setLessonSuccessMessage, response.data.message);
         fetchLessonsForCourse(currentCourse.id);
         if(currentLesson && currentLesson.id === lessonId){
-            resetLessonFormAndSelection(); // Si la lección eliminada era la que se estaba editando
+            resetLessonFormAndSelection();
         }
       } catch (err) {
         console.error("Error deleting lesson:", err);
@@ -254,15 +283,14 @@ function AdminDashboard() {
   return (
     <div className="admin-dashboard">
       <h2>Panel de Administración</h2>
-
-      {/* Mensajes Globales del Dashboard (si los hubiera) */}
-      {/* ... */}
+      
+      {/* El resto del JSX no necesita cambios, ya que se basa en los estados que ahora se actualizan correctamente. */}
 
       {/* Formulario para Crear/Editar Curso */}
       <div className="admin-form">
         <h3>{isEditingCourse ? `Editando Curso: ${currentCourse?.title || ''}` : 'Crear Nuevo Curso'}</h3>
         {courseError && <p className="error-message">{courseError}</p>}
-        {courseSuccessMessage && !courseError && <p className="success-message">{courseSuccessMessage}</p>} {/* Solo mostrar si no hay error */}
+        {courseSuccessMessage && !courseError && <p className="success-message">{courseSuccessMessage}</p>}
         <form onSubmit={handleCourseSubmit}>
           <div>
             <label htmlFor="courseTitle">Título del Curso:</label>
@@ -280,9 +308,27 @@ function AdminDashboard() {
             <label htmlFor="courseImageUrl">URL de la Imagen del Curso (opcional):</label>
             <input type="url" id="courseImageUrl" name="image_url" value={courseFormData.image_url} onChange={handleCourseInputChange} placeholder="https://ejemplo.com/imagen.jpg"/>
           </div>
-          <button type="submit">{isEditingCourse ? 'Actualizar Curso' : 'Crear Curso'}</button>
-          {isEditingCourse && <button type="button" className="cancel" onClick={resetCourseFormAndSelection}>Cancelar Edición de Curso</button>}
-        </form>
+          <div>
+            <label htmlFor="courseCategory">Categoría del Curso:</label>
+            <select
+                id="courseCategory"
+                name="category_id"
+                value={courseFormData.category_id}
+                onChange={handleCourseInputChange}
+                required
+            >
+                <option value="" disabled>Selecciona una categoría</option>
+                {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                        {category.name}
+                    </option>
+                ))}
+            </select>
+        </div>
+        
+        <button type="submit">{isEditingCourse ? 'Actualizar Curso' : 'Crear Curso'}</button>
+        {isEditingCourse && <button type="button" className="cancel" onClick={resetCourseFormAndSelection}>Cancelar Edición</button>}
+    </form>
       </div>
 
       {/* Sección de Lecciones (solo si se está editando un curso) */}
@@ -316,7 +362,7 @@ function AdminDashboard() {
 
           <h4>Lecciones Existentes en "{currentCourse.title}"</h4>
           {isLoadingLessons ? <p>Cargando lecciones...</p> : lessons.length > 0 ? (
-            <div className="admin-course-list"> {/* Reutilizando clase para estilo de tabla */}
+            <div className="admin-course-list">
                 <table className="admin-lessons-table">
                 <thead>
                     <tr>
@@ -327,7 +373,7 @@ function AdminDashboard() {
                     </tr>
                 </thead>
                 <tbody>
-                    {lessons.map(lesson => ( // lessons ya está ordenado al fetchear
+                    {lessons.map(lesson => (
                     <tr key={lesson.id}>
                         <td>{lesson.order_index}</td>
                         <td>{lesson.title}</td>
@@ -348,7 +394,7 @@ function AdminDashboard() {
       )}
 
       {/* Lista de Cursos Existentes */}
-      <div className="admin-course-list-container admin-form"> {/* Envolver en un div con clase similar para consistencia */}
+      <div className="admin-course-list-container admin-form">
         <h3>Lista de Cursos Globales</h3>
         {isLoadingCourses ? <p>Cargando cursos...</p> : courses.length > 0 ? (
           <div className="admin-course-list">
