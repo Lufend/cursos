@@ -1,17 +1,21 @@
 import React, { useState, useEffect, createContext } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom'; // Asegúrate de importar Link
 import axios from 'axios';
+
+// Importaciones de componentes
 import Navbar from './components/Navbar';
 import Login from './components/Login';
-import Register from './components/Register'; // Crearemos este componente
+import Register from './components/Register';
 import CourseList from './components/CourseList';
 import AdminDashboard from './components/AdminDashboard';
-import CourseDetailView from './components/CourseDetailView'; // Nueva importación
+import CourseDetailView from './components/CourseDetailView';
+import CertificateView from './components/CertificateView';
+import CategoryBar from './components/CategoryBar';
 import './App.css';
 
-// Configura Axios para enviar credenciales (cookies) con cada solicitud
+// Configuración de Axios
 axios.defaults.withCredentials = true;
-const API_BASE_URL = 'http://localhost:5001/api'; // URL de tu backend Flask
+const API_BASE_URL = 'http://localhost:5001/api';
 
 export const AuthContext = createContext();
 
@@ -29,7 +33,7 @@ function App() {
         }
       } catch (error) {
         console.error("Error checking session:", error);
-        setUser(null); // Asegurarse de que el usuario es null si hay error
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -39,52 +43,51 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    if (userData.is_admin) {
-      navigate('/admin');
-    } else {
-      navigate('/courses');
-    }
+    navigate(userData.is_admin ? '/admin' : '/courses');
   };
 
   const handleLogout = async () => {
     try {
       await axios.post(`${API_BASE_URL}/logout`);
-      setUser(null);
-      navigate('/login');
     } catch (error) {
       console.error("Error logging out:", error);
-      // Incluso si hay un error en el backend, limpiar el estado del usuario en el frontend
+    } finally {
       setUser(null);
       navigate('/login');
     }
   };
 
   if (loading) {
-    return <div>Cargando...</div>; // O un spinner más elegante
+    return <div>Cargando...</div>;
   }
 
   return (
     <AuthContext.Provider value={{ user, setUser, API_BASE_URL, handleLogin, handleLogout }}>
       <Navbar />
+      {user && <CategoryBar />}
+
+      
       <div className="container">
         <Routes>
-          <Route path="/login" element={!user ? <Login /> : <Navigate to={user.is_admin ? "/admin" : "/courses"} />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to={user.is_admin ? "/admin" : "/courses"} />} />
+          {/* Rutas Públicas */}
+          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
 
-          <Route
-          path="/courses"
-          element={user ? <CourseList /> : <Navigate to="/login" />}
-        />
-        <Route
-        path="/courses/:courseId" // Nueva ruta para detalles del curso
-        element={user ? <CourseDetailView /> : <Navigate to="/login" />}
-        />
-        <Route
-        path="/admin"
-        element={user && user.is_admin ? <AdminDashboard /> : <Navigate to={user ? "/courses" : "/login"} />}
-      />
+          {/* Rutas Protegidas */}
+          <Route path="/courses" element={user ? <CourseList /> : <Navigate to="/login" />} />
+          <Route path="/courses/category/:categoryId" element={user ? <CourseList /> : <Navigate to="/login" />} />
+          <Route path="/courses/:courseId" element={user ? <CourseDetailView /> : <Navigate to="/login" />} />
+          
+          {/* ---- ESTA ES LA RUTA IMPORTANTE ---- */}
+          <Route 
+            path="/certificate/:completionId"
+            element={user ? <CertificateView /> : <Navigate to="/login" />}
+          />
+          
+          <Route path="/admin" element={user && user.is_admin ? <AdminDashboard /> : <Navigate to="/" />} />
+          
+          {/* Ruta Raíz y Fallback */}
           <Route path="/" element={<Navigate to={user ? (user.is_admin ? "/admin" : "/courses") : "/login"} />} />
-          {/* Puedes añadir una ruta para 404 Not Found */}
           <Route path="*" element={<div>404 - Página No Encontrada</div>} />
         </Routes>
       </div>
@@ -92,4 +95,7 @@ function App() {
   );
 }
 
+// Nota: El componente App usa 'navigate', pero no puede estar dentro del contexto del
+// Router que él mismo define. Por eso envolvemos <App /> en <BrowserRouter> en index.js.
+// Esto es correcto y no necesita cambios.
 export default App;

@@ -407,3 +407,11 @@ body {
   text-decoration: none; /* Quita el subrayado del enlace */
   color: inherit; /* Hereda el color del texto para que no sea azul por defecto */
 }
+.admin-form select {
+    width: 100%; /* O calc(100% - 22px) si tiene padding y borde */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    background-color: white; /* Asegurar fondo blanco */
+}
